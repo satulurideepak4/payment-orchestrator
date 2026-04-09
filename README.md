@@ -124,17 +124,9 @@ This project implements a **simplified payment orchestration layer** — a syste
 payment-orchestrator/
 │
 ├── Dockerfile                          # Multi-stage app Docker build
-├── docker-compose.yml                  # Full stack: app + postgres + redis
+├── docker-compose.yml                  # Full stack: postgres + redis
 ├── pom.xml                             # Maven build descriptor
 ├── README.md
-│
-├── docker/
-│   ├── postgres/
-│   │   ├── Dockerfile                  # Custom PostgreSQL 15 image
-│   │   └── init.sql                    # Schema creation, indexes, seed data
-│   └── redis/
-│       ├── Dockerfile                  # Custom Redis 7 image
-│       └── redis.conf                  # Persistence + memory configuration
 │
 └── src/
     ├── main/java/com/yuno/payment/
@@ -299,18 +291,18 @@ If any check fails, install the missing tool before proceeding.
 This builds the custom Docker images and starts both services.
 
 ```bash
-docker compose up -d postgres redis
+docker compose up -d
 ```
 
 **What this does step by step:**
-1. Builds `docker/postgres/Dockerfile` → PostgreSQL 15 image
+1. Builds PostgreSQL 15 image
 2. On first start, runs `docker/postgres/init.sql` automatically, which:
    - Creates the `payments` table with all columns and constraints
    - Creates 4 indexes (idempotency_key, status, merchant_id, composite)
    - Adds an `updated_at` auto-update trigger
    - Inserts 3 seed rows for immediate verification
-3. Builds `docker/redis/Dockerfile` → Redis 7 image
-4. Applies `docker/redis/redis.conf` which enables RDB + AOF persistence and sets a 256MB memory limit
+3. Builds Redis 7 image
+4. Enables RDB + AOF persistence and sets a 256MB memory limit
 5. Maps port `5432` (PostgreSQL) and `6379` (Redis) to your localhost
 
 **Expected terminal output:**
@@ -430,18 +422,35 @@ curl -s http://localhost:8080/actuator/health | python3 -m json.tool
 **Expected response:**
 ```json
 {
-    "status": "UP",
-    "components": {
-        "db": {
-            "status": "UP"
-        },
-        "diskSpace": {
-            "status": "UP"
-        },
-        "redis": {
-            "status": "UP"
-        }
-    }
+   "status": "UP",
+   "components": {
+      "db": {
+         "status": "UP",
+         "details": {
+            "database": "PostgreSQL",
+            "validationQuery": "isValid()"
+         }
+      },
+      "diskSpace": {
+         "status": "UP",
+         "details": {
+            "total": 494384795648,
+            "free": 228438466560,
+            "threshold": 10485760,
+            "path": "/Users/deepaksatuluri/Movies/payment-orchestrator/.",
+            "exists": true
+         }
+      },
+      "ping": {
+         "status": "UP"
+      },
+      "redis": {
+         "status": "UP",
+         "details": {
+            "version": "7.2.13"
+         }
+      }
+   }
 }
 ```
 
@@ -462,7 +471,7 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
     "amount": 99.99,
     "currency": "USD",
     "paymentMethod": "CARD"
-  }' | python3 -m json.tool
+  }'
 ```
 
 **Expected response (201 Created):**
@@ -500,7 +509,7 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
     "amount": 99.99,
     "currency": "USD",
     "paymentMethod": "CARD"
-  }' | python3 -m json.tool
+  }'
 ```
 
 Both responses will have the **same `id`, `status`, and `providerReference`** — the payment was not processed twice.
@@ -518,7 +527,7 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
     "amount": 500.00,
     "currency": "INR",
     "paymentMethod": "UPI"
-  }' | python3 -m json.tool
+  }'
 ```
 
 The response will show `"providerName": "ProviderB"` — UPI was routed correctly.
@@ -529,7 +538,7 @@ The response will show `"providerName": "ProviderB"` — UPI was routed correctl
 
 ```bash
 # Replace <UUID> with the id from step 8a
-curl -s http://localhost:8080/api/v1/payments/<UUID> | python3 -m json.tool
+curl -s http://localhost:8080/api/v1/payments/<UUID>
 ```
 
 ---
@@ -537,7 +546,7 @@ curl -s http://localhost:8080/api/v1/payments/<UUID> | python3 -m json.tool
 #### 8e. List all payments for a merchant
 
 ```bash
-curl -s "http://localhost:8080/api/v1/payments?merchantId=merchant-demo" | python3 -m json.tool
+curl -s "http://localhost:8080/api/v1/payments?merchantId=merchant-demo"
 ```
 
 ---
@@ -553,7 +562,7 @@ curl -s -X POST http://localhost:8080/api/v1/payments \
     "amount": 0,
     "currency": "DOLLAR",
     "paymentMethod": "CARD"
-  }' | python3 -m json.tool
+  }'
 ```
 
 **Expected (400 Bad Request):**
@@ -615,10 +624,12 @@ docker compose up -d
 
 # Step 3: Follow the app logs until it starts
 docker compose logs -f app
+
+# Step 4: Start the Application
 # Wait for: "Started PaymentOrchestratorApplication in X.XXX seconds"
 ```
 
-**Verify all three services are healthy:**
+**Verify all services are healthy:**
 ```bash
 docker compose ps
 ```
@@ -626,7 +637,6 @@ docker compose ps
 Expected:
 ```
 NAME                STATUS               PORTS
-payment_app         Up X seconds (healthy)   0.0.0.0:8080->8080/tcp
 payment_postgres    Up X seconds (healthy)   0.0.0.0:5432->5432/tcp
 payment_redis       Up X seconds (healthy)   0.0.0.0:6379->6379/tcp
 ```
@@ -646,9 +656,6 @@ docker compose down
 # Full reset — stop containers AND delete all volumes
 docker compose down -v
 
-# Open a shell inside the app container
-docker exec -it payment_app sh
-
 # Open PostgreSQL CLI
 docker exec -it payment_postgres psql -U postgres -d payment_orchestrator
 
@@ -657,48 +664,6 @@ docker exec -it payment_redis redis-cli
 ```
 
 ---
-
-## 🐋 Docker Setup Details
-
-### PostgreSQL — `docker/postgres/Dockerfile`
-
-Built from `postgres:15-alpine`. On first container start, `init.sql` runs automatically:
-
-```sql
--- Creates payments table with all columns and constraints
--- Creates 4 indexes for performance
--- Adds updated_at trigger
--- Seeds 3 sample rows for smoke testing
-```
-
-### Redis — `docker/redis/Dockerfile`
-
-Built from `redis:7-alpine` with `redis.conf` applied:
-
-| Setting           | Value            | Reason                                              |
-|-------------------|------------------|-----------------------------------------------------|
-| RDB persistence   | Save every 60s   | Idempotency keys survive container restart          |
-| AOF persistence   | `everysec`       | Durable writes with minimal performance overhead    |
-| Max memory        | 256MB            | Prevents OOM on host                                |
-| Eviction policy   | `allkeys-lru`    | Hottest keys (most recently used) stay in memory    |
-| Lazy freeing      | Enabled          | Non-blocking eviction of large keys                 |
-
-### App — `Dockerfile` (multi-stage)
-
-| Stage   | Base Image                          | Purpose                             |
-|---------|-------------------------------------|-------------------------------------|
-| builder | `maven:3.9.6-eclipse-temurin-17`    | Download dependencies, compile, package JAR |
-| runtime | `eclipse-temurin:17-jre-alpine`     | Minimal JRE; runs as non-root user  |
-
-JVM flags applied at runtime:
-```
--XX:+UseContainerSupport      Respect container memory cgroup limits
--XX:MaxRAMPercentage=75.0     Use up to 75% of container RAM for heap
--Djava.security.egd=...       Faster startup (avoids /dev/random blocking)
-```
-
----
-
 ## 📡 API Reference
 
 ### Base URL
@@ -1111,7 +1076,7 @@ docker compose up -d postgres redis
 
 ---
 
-## 💬 Prompts Used — Vibe Coding Log
+## 💬 Prompts Used 
 
 As required by the Yuno assessment, all AI prompts used during development are documented here.
 
@@ -1176,5 +1141,3 @@ As required by the Yuno assessment, all AI prompts used during development are d
 > "Write a comprehensive README for the payment orchestrator covering: project overview, full architecture ASCII diagram, project directory tree, functional requirements table with status, non-functional requirements table, tech stack table, prerequisites table with check commands, step-by-step setup guide (10 steps each with verify command), full Docker stack instructions, Docker image design details, complete API reference with request/response field tables and HTTP status codes, integration points tables for PostgreSQL/Redis/ProviderA/ProviderB, payment lifecycle flow diagram, idempotency design explanation, retry/backoff design table, full test case table (41 tests with classification and positive/negative), performance considerations, Prometheus metrics table with example queries, full configuration reference table, troubleshooting section for 6 common issues, and the vibe coding prompt log."
 
 ---
-
-*Built for the Yuno Backend Developer Core — Java Assessment*
