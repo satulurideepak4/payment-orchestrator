@@ -1,0 +1,184 @@
+{
+  "info": {
+    "_postman_id": "ab881003-8587-4155-aa71-2855dd254049",
+    "name": "Payment-Orchestration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "40167683",
+    "_collection_link": "https://go.postman.co/collection/40167683-ab881003-8587-4155-aa71-2855dd254049?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. Check health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/actuator/health",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "actuator",
+            "health"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Create Card Payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"idempotencyKey\": \"payment-for-ear-phones\",\n    \"merchantId\": \"apple-inc\",\n    \"amount\": 99.99,\n    \"currency\": \"USD\",\n    \"paymentMethod\": \"CARD\"\n  }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/payments",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "payments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Create Upi Payment",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"idempotencyKey\": \"payment-for-mobile-charger\",\n    \"merchantId\": \"apple-inc\",\n    \"amount\": 2000.00,\n    \"currency\": \"INR\",\n    \"paymentMethod\": \"UPI\"\n  }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/payments",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "payments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Fetch payment by id",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"idempotencyKey\": \"payment-for-mobile-charger\",\n    \"merchantId\": \"apple-inc\",\n    \"amount\": 2000.00,\n    \"currency\": \"INR\",\n    \"paymentMethod\": \"UPI\"\n  }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/payments/6cf75063-6a9b-404a-87a3-feffe7b3d598",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "payments",
+            "6cf75063-6a9b-404a-87a3-feffe7b3d598"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Fetch all  payments by merchantId",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"idempotencyKey\": \"payment-for-mobile-charger\",\n    \"merchantId\": \"apple-inc\",\n    \"amount\": 2000.00,\n    \"currency\": \"INR\",\n    \"paymentMethod\": \"UPI\"\n  }",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/v1/payments?merchantId=apple-inc",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "v1",
+            "payments"
+          ],
+          "query": [
+            {
+              "key": "merchantId",
+              "value": "apple-inc"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
