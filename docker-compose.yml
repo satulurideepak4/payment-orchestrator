@@ -4,12 +4,8 @@
 # Starts three services:
 #   1. postgres  — PostgreSQL 15 with schema auto-initialised
 #   2. redis     — Redis 7 with persistence + memory limits
-#   3. app       — Spring Boot payment orchestrator (optional)
 #
-# Quick start (infra only — run app via Maven/IDE):
-#   docker-compose up -d postgres redis
-#
-# Full stack including app:
+# Quick Start:
 #   docker-compose up -d
 #
 # Stop & clean up:
@@ -58,39 +54,6 @@ services:
       retries: 5
     networks:
       - payment-net
-
-#  # ---------------------------------------------------------------------------
-#  # App — Spring Boot Payment Orchestrator
-#  # uncomment out this service if you don't prefer to run the app via Maven/IDE.
-#  # ---------------------------------------------------------------------------
-#  app:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    container_name: payment_app
-#    restart: unless-stopped
-#    ports:
-#      - "8080:8080"
-#    environment:
-#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_orchestrator
-#      SPRING_DATASOURCE_USERNAME: postgres
-#      SPRING_DATASOURCE_PASSWORD: postgres
-#      SPRING_DATA_REDIS_HOST: redis
-#      SPRING_DATA_REDIS_PORT: 6379
-#      PAYMENT_RETRY_MAX_ATTEMPTS: 3
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#    healthcheck:
-#      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-#      interval: 15s
-#      timeout: 10s
-#      start_period: 60s
-#      retries: 5
-#    networks:
-#      - payment-net
 
 # =============================================================================
 # Volumes
